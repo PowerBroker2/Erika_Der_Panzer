@@ -232,6 +232,7 @@ uint8_t checkFallingEdge()
 
   //prime
   previousTriggerState = currentTriggerState;
+  
   //poll button
   if (digitalRead(TRIG_PIN))
     currentTriggerState = 1;
@@ -268,42 +269,29 @@ uint8_t singingCheckFallingEdge()
 
   //prime
   singingPreviousTriggerState = singingCurrentTriggerState;
+  
   //poll button
   if (digitalRead(SOUND_PIN))
-  {
     singingCurrentTriggerState = 1;
-  }
   else
-  {
     singingCurrentTriggerState = 0;
-  }
 
   //check for falling edge
   if ((singingCurrentTriggerState == 0) && (singingPreviousTriggerState == 1))
-  {
     singingPressDetected = 1;
-  }
   else
-  {
     singingPressDetected = 0;
-  }
 
   //debounce after press
   if (singingPressDetected)
   {
     if (digitalRead(SOUND_PIN))
-    {
       singingDebounce = (singingDebounce << 1) | 1;
-    }
     else
-    {
       singingDebounce = (singingDebounce << 1) & 0xFE;
-    }
 
     if (!singingDebounce)
-    {
       singing = 1;
-    }
   }
 
   return singing;
