@@ -222,12 +222,12 @@ void add_Depression(int depr)
   
   if (current_Depression < DEP_MIN)
   {
-    Serial.print("current_Depression at DEP_MIN");
+    Serial.println("current_Depression at DEP_MIN");
     current_Depression = DEP_MIN;
   }
   else if (current_Depression > DEP_MIN)
   {
-    Serial.print("current_Depression at DEP_MAX");
+    Serial.println("current_Depression at DEP_MAX");
     current_Depression = DEP_MAX;
   }
 }
