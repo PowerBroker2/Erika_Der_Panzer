@@ -6,8 +6,8 @@
 const unsigned long RECOIL_DELAY = 2000;
 const unsigned long DEP_DELAY    = 10;
 
-const int STICK_DEAD_MAX    = 550;
-const int STICK_DEAD_MIN    = 510;
+const int STICK_DEAD_MAX    = 540;
+const int STICK_DEAD_MIN    = 500;
 
 const byte SPEED_MAX        = 180;
 const byte SPEED_MIN        = 0;
