@@ -172,12 +172,12 @@ void Throttle(int x, uint8_t offset, uint8_t * right_Speed, uint8_t * left_Speed
   if (x >= STICK_DEAD_MAX)
   {
     *right_Speed = 90;
-    *left_Speed = map(x, STICK_DEAD_MAX, 1023, 90, SPEED_MAX);
+    *left_Speed = map(x, STICK_DEAD_MAX, 1023, 90, SPEED_MIN);
   }
   else if (x <= STICK_DEAD_MIN)
   {
     *left_Speed = 90;
-    *right_Speed = map(x, STICK_DEAD_MAX, 0, 90, SPEED_MIN);
+    *right_Speed = map(x, STICK_DEAD_MAX, 0, 90, SPEED_MAX);
   }
   else
   {
