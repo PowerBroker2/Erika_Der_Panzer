@@ -4,25 +4,31 @@
 
 
 const unsigned long RECOIL_DELAY = 2000;
-const unsigned long DEP_DELAY    = 10;
+const unsigned long DEP_DELAY    = 1;
 
 const int STICK_DEAD_MAX    = 540;
 const int STICK_DEAD_MIN    = 500;
 
 const byte SPEED_MAX        = 180;
 const byte SPEED_MIN        = 0;
+
 const byte TRAV_MAX         = 180;
 const byte TRAV_MID         = 90;
 const byte TRAV_MIN         = 0;
+
 const byte STICK_OFFSET_MAX = 90;
 const byte STICK_OFFSET_MIN = 0;
+
 const byte DEP_MAX          = 105;
 const byte DEP_MID          = 45;
 const byte DEP_MIN          = 0;
 const byte DEP_DELTA        = 1;
+
 const byte START_OF_FRAME   = 200;
+
 const byte X_AXIS_PIN       = 0;
 const byte Y_AXIS_PIN       = 1;
+
 const byte DEP_PIN          = 2;
 const byte TRAV_PIN         = 3;
 const byte TRIG_PIN         = 5;
@@ -217,13 +223,9 @@ void Throttle(int x, uint8_t offset, uint8_t * right_Speed, uint8_t * left_Speed
 void add_Depression(int depr)
 {
   if ((depr >= STICK_DEAD_MAX) && ((current_Depression - DEP_DELTA) >= DEP_MIN) && (current_Depression > DEP_DELTA))
-  {
     current_Depression -= DEP_DELTA;
-  }
   else if ((depr <= STICK_DEAD_MIN) && ((current_Depression + DEP_DELTA) <= DEP_MAX))
-  {
     current_Depression += DEP_DELTA;
-  }
 }
 
 
