@@ -19,6 +19,7 @@ const byte STICK_OFFSET_MIN = 0;
 const byte DEP_MAX          = 105;
 const byte DEP_MID          = 45;
 const byte DEP_MIN          = 0;
+const byte DEP_DELTA        = 1;
 const byte START_OF_FRAME   = 200;
 const byte X_AXIS_PIN       = 0;
 const byte Y_AXIS_PIN       = 1;
@@ -215,26 +216,14 @@ void Throttle(int x, uint8_t offset, uint8_t * right_Speed, uint8_t * left_Speed
 
 void add_Depression(int depr)
 {
-  if (depr >= STICK_DEAD_MAX)
-    current_Depression -= 1;
-  else if (depr <= STICK_DEAD_MIN)
-    current_Depression += 1;
-  
-  Serial.print("depr: "); Serial.println(depr);
-  Serial.print("current_Depression: "); Serial.println(current_Depression);
-  
-  if (current_Depression < DEP_MIN)
+  if ((depr >= STICK_DEAD_MAX) && ((current_Depression - DEP_DELTA) >= DEP_MIN) && (current_Depression > DEP_DELTA))
   {
-    Serial.println("current_Depression at DEP_MIN");
-    current_Depression = DEP_MIN;
+    current_Depression -= DEP_DELTA;
   }
-  else if (current_Depression > DEP_MAX)
+  else if ((depr <= STICK_DEAD_MIN) && ((current_Depression + DEP_DELTA) <= DEP_MAX))
   {
-    Serial.println("current_Depression at DEP_MAX");
-    current_Depression = DEP_MAX;
+    current_Depression += DEP_DELTA;
   }
-  
-  Serial.println();
 }
 
 
