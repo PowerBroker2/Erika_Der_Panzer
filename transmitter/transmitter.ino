@@ -4,7 +4,7 @@
 
 
 const unsigned long RECOIL_DELAY = 2000;
-const unsigned long DEP_DELAY    = 150;
+const unsigned long DEP_DELAY    = 10;
 
 const int STICK_DEAD_MAX    = 550;
 const int STICK_DEAD_MIN    = 510;
@@ -215,12 +215,20 @@ void Throttle(int x, uint8_t offset, uint8_t * right_Speed, uint8_t * left_Speed
 
 void add_Depression(int depr)
 {
-  if (depr >= STICK_DEAD_MAX)
-    current_Depression -= 1;
-  else if (depr <= STICK_DEAD_MIN)
-    current_Depression += 1;
-
-  current_Depression = constrain(current_Depression, DEP_MIN, DEP_MAX);
+  if ((current_Depression > DEP_MIN) && (current_Depression < DEP_MIN))
+  {
+    if (depr >= STICK_DEAD_MAX)
+      current_Depression -= 1;
+    else if (depr <= STICK_DEAD_MIN)
+      current_Depression += 1;
+  }
+  else
+  {
+    if (current_Depression <= DEP_MIN)
+      current_Depression = DEP_MIN;
+    else
+      current_Depression = DEP_MAX;
+  }
 }
 
 
