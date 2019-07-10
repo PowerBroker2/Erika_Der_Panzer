@@ -220,6 +220,9 @@ void add_Depression(int depr)
   else if (depr <= STICK_DEAD_MIN)
     current_Depression += 1;
   
+  Serial.print("depr: "); Serial.println(depr);
+  Serial.print("current_Depression: "); Serial.println(current_Depression);
+  
   if (current_Depression < DEP_MIN)
   {
     Serial.println("current_Depression at DEP_MIN");
@@ -230,6 +233,8 @@ void add_Depression(int depr)
     Serial.println("current_Depression at DEP_MAX");
     current_Depression = DEP_MAX;
   }
+  
+  Serial.println();
 }
 
 
