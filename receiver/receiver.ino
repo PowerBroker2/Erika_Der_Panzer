@@ -33,33 +33,33 @@ struct control
   uint8_t PrevDriving;
 } Tonk;
 
-const byte PacketSize = 8;
+const byte PacketSize   = 8;
 const byte StartOfFrame = 200;
 
 const byte recoilMin = 7;
 const byte recoilMax = 158;
 
 unsigned long currentTime = millis();
-unsigned long timeBench = currentTime;
-unsigned long recoilTime = 200;
+unsigned long timeBench   = currentTime;
+unsigned long recoilTime  = 200;
 
 unsigned long PLAYcurrentTime = millis();
-unsigned long PLAYtimeBench = PLAYcurrentTime;
-unsigned long duration = 1000;
+unsigned long PLAYtimeBench   = PLAYcurrentTime;
+unsigned long duration        = 1000;
 
 byte randNumber = 1;
-byte trip = 0;
+byte trip       = 0;
 
-byte BOF = 0x7E;
-byte ver = 0xFF;
-byte number = 0x6;
+byte BOF          = 0x7E;
+byte ver          = 0xFF;
+byte number       = 0x6;
 byte commandValue = 0x8;
-byte feedback = 0x0;
-byte paramMSB = 0x0;
-byte paramLSB = 0x3;
-byte checksumMSB = 0x0;
-byte checksumLSB = 0x0;
-byte _EOF = 0xEF;
+byte feedback     = 0x0;
+byte paramMSB     = 0x0;
+byte paramLSB     = 0x3;
+byte checksumMSB  = 0x0;
+byte checksumLSB  = 0x0;
+byte _EOF         = 0xEF;
 
 int checksum = 0;
 
@@ -67,17 +67,17 @@ void setup()
 {
   Serial.begin(9600);
 
-  Tonk.Volume = 90;
-  Tonk.Volume = 90;
-  Tonk.Depression = 90;
-  Tonk.Traverse = 90;
-  Tonk.Fire = 0;
-  Tonk.FireDone = 1;
-  Tonk.Volume = 10;
-  Tonk.PrevVolume = 10;
-  Tonk.Sing = 0;
-  Tonk.PrevSing = 0;
-  Tonk.Driving = 0;
+  Tonk.Volume      = 90;
+  Tonk.Volume      = 90;
+  Tonk.Depression  = 90;
+  Tonk.Traverse    = 90;
+  Tonk.Fire        = 0;
+  Tonk.FireDone    = 1;
+  Tonk.Volume      = 10;
+  Tonk.PrevVolume  = 10;
+  Tonk.Sing        = 0;
+  Tonk.PrevSing    = 0;
+  Tonk.Driving     = 0;
   Tonk.PrevDriving = 0;
 
   Gun_Servo.attach(5);
@@ -178,12 +178,12 @@ void loop()
 
       if (Tonk.Fire)
       {
-        Current_State = FIRE;
+        Current_State  = FIRE;
         Previous_State = DRIVE;
       }
       else
       {
-        Current_State = GIT_DATA;
+        Current_State  = GIT_DATA;
         Previous_State = DRIVE;
       }
       break;
@@ -193,17 +193,17 @@ void loop()
 
       if (Tonk.Driving != Tonk.PrevDriving)
       {
-        Current_State = DRIVE;
+        Current_State  = DRIVE;
         Previous_State = SING;
       }
       else if (Tonk.Fire)
       {
-        Current_State = FIRE;
+        Current_State  = FIRE;
         Previous_State = SING;
       }
       else
       {
-        Current_State = GIT_DATA;
+        Current_State  = GIT_DATA;
         Previous_State = SING;
       }
       break;
@@ -212,7 +212,7 @@ void loop()
       if (Tonk.Sing == 0)
       {
         currentTime = millis();
-        timeBench = currentTime;
+        timeBench   = currentTime;
         recoil.write(recoilMax);
         if (Tonk.Driving)
         {
@@ -343,16 +343,16 @@ byte checkSOF()
 
 void readData()
 {
-  Tonk.PrevSing = Tonk.Sing;
+  Tonk.PrevSing    = Tonk.Sing;
   Tonk.PrevDriving = Tonk.Driving;
-  Tonk.PrevVolume = Tonk.Volume;
-  Tonk.Fire = Serial.read();
-  Tonk.RSpeed = Serial.read();
-  Tonk.LSpeed = Serial.read();
-  Tonk.Depression = Serial.read();
-  Tonk.Traverse = Serial.read();
-  Tonk.Volume = Serial.read();
-  Tonk.Sing = Serial.read();
+  Tonk.PrevVolume  = Tonk.Volume;
+  Tonk.Fire        = Serial.read();
+  Tonk.RSpeed      = Serial.read();
+  Tonk.LSpeed      = Serial.read();
+  Tonk.Depression  = Serial.read();
+  Tonk.Traverse    = Serial.read();
+  Tonk.Volume      = Serial.read();
+  Tonk.Sing        = Serial.read();
 
   if ((Tonk.RSpeed != 90) || (Tonk.LSpeed != 90))
   {
