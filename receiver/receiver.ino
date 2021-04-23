@@ -1,10 +1,34 @@
 #include <Servo.h>
+#include "SerialTransfer.h"
+#include "FireTimer.h"
+
+
+
+
+const byte recoilMin = 7;
+const byte recoilMax = 158;
+
+const byte GUN_PIN    = 6;
+const byte TRAV_PIN   = 5;
+const byte R_PIN      = 3;
+const byte L_PIN      = 4;
+const byte RECOIL_PIN = 7;
+
+
+
 
 Servo Gun_Servo;
 Servo Trav_Servo;
 Servo R_Servo;
 Servo L_Servo;
 Servo recoil;
+
+SerialTransfer myTransfer;
+
+FireTimer recoilDelay;
+
+
+
 
 enum state
 {
@@ -14,77 +38,53 @@ enum state
   FIRE
 };
 
-state Current_State = GIT_DATA;
+state Current_State  = GIT_DATA;
 state Previous_State = GIT_DATA;
 
 struct control
 {
-  uint8_t RSpeed;
-  uint8_t LSpeed;
-  int8_t Depression;
-  uint8_t Traverse;
-  uint8_t Fire;
-  uint8_t FireDone;
-  uint8_t Volume;
-  uint8_t PrevVolume;
-  uint8_t Sing;
-  uint8_t PrevSing;
-  uint8_t Driving;
-  uint8_t PrevDriving;
+  int   RSpeed;
+  int   LSpeed;
+  float Depression;
+  int   Traverse;
+  bool  Fire;
+  int   Volume;
+  bool  Sing;
 } Tonk;
 
-const byte PacketSize   = 8;
-const byte StartOfFrame = 200;
 
-const byte recoilMin = 7;
-const byte recoilMax = 158;
 
-unsigned long currentTime = millis();
-unsigned long timeBench   = currentTime;
-unsigned long recoilTime  = 200;
 
-unsigned long PLAYcurrentTime = millis();
-unsigned long PLAYtimeBench   = PLAYcurrentTime;
-unsigned long duration        = 1000;
+unsigned long recoilTime = 200;
+unsigned long duration   = 1000;
 
 byte randNumber = 1;
 byte trip       = 0;
 
-byte BOF          = 0x7E;
-byte ver          = 0xFF;
-byte number       = 0x6;
-byte commandValue = 0x8;
-byte feedback     = 0x0;
-byte paramMSB     = 0x0;
-byte paramLSB     = 0x3;
-byte checksumMSB  = 0x0;
-byte checksumLSB  = 0x0;
-byte _EOF         = 0xEF;
 
-int checksum = 0;
+
 
 void setup()
 {
   Serial.begin(9600);
+  
+  Tonk.Depression = 90;
+  Tonk.Traverse   = 90;
+  Tonk.Fire       = 0;
+  Tonk.Volume     = 10;
+  Tonk.Sing       = 0;
+  Tonk.Driving    = 0;
 
-  Tonk.Volume      = 90;
-  Tonk.Volume      = 90;
-  Tonk.Depression  = 90;
-  Tonk.Traverse    = 90;
-  Tonk.Fire        = 0;
-  Tonk.FireDone    = 1;
-  Tonk.Volume      = 10;
-  Tonk.PrevVolume  = 10;
-  Tonk.Sing        = 0;
-  Tonk.PrevSing    = 0;
-  Tonk.Driving     = 0;
-  Tonk.PrevDriving = 0;
-
-  Gun_Servo.attach(5);
-  Trav_Servo.attach(6);
-  R_Servo.attach(7);
-  L_Servo.attach(8);
-  recoil.attach(9);
+  PrevVolume  = 10;
+  PrevSing    = 0;
+  PrevDriving = 0;
+  FireDone    = 1;
+  
+  Gun_Servo.attach(GUN_PIN);
+  Trav_Servo.attach(TRAV_PIN);
+  R_Servo.attach(R_PIN);
+  L_Servo.attach(L_PIN);
+  recoil.attach(RECOIL_PIN);
 
   Gun_Servo.write(90);
   Trav_Servo.write(90);
@@ -106,6 +106,9 @@ void setup()
   findChecksum();
   sendData();
 }
+
+
+
 
 void loop()
 {
@@ -272,6 +275,9 @@ void loop()
   }
 }
 
+
+
+
 void findChecksum()
 {
   checksum = (~(ver + number + commandValue + feedback + paramMSB + paramLSB)) + 1;
@@ -282,6 +288,9 @@ void findChecksum()
   return;
 }
 
+
+
+
 void volume(byte x)
 {
   commandValue = 6;
@@ -290,6 +299,9 @@ void volume(byte x)
 
   return;
 }
+
+
+
 
 void loop(byte x)
 {
@@ -300,6 +312,9 @@ void loop(byte x)
   return;
 }
 
+
+
+
 void play(byte x)
 {
   commandValue = 3;
@@ -308,6 +323,9 @@ void play(byte x)
 
   return;
 }
+
+
+
 
 void sendData()
 {
@@ -324,6 +342,9 @@ void sendData()
 
   return;
 }
+
+
+
 
 byte checkSOF()
 {
@@ -366,6 +387,9 @@ void readData()
   return;
 }
 
+
+
+
 void writeToServos()
 {
   R_Servo.write(Tonk.RSpeed);
@@ -375,6 +399,9 @@ void writeToServos()
 
   return;
 }
+
+
+
 
 void playSong()
 {
@@ -428,6 +455,9 @@ void playSong()
   return;
 }
 
+
+
+
 //return to ready state
 void firin_Mah_Laza()
 {
@@ -441,6 +471,9 @@ void firin_Mah_Laza()
 
   return;
 }
+
+
+
 
 void adjustVolume()
 {
