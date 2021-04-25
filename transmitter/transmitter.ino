@@ -97,7 +97,7 @@ static void handleSound()
 
 void setup()
 {
-  Serial.begin(115200);
+  Serial.begin(9600);
   
   trigBtn.attachClick(handleTrig);
   soundBtn.attachClick(handleSound);
@@ -232,12 +232,11 @@ void Throttle()
     Tonk.LSpeed -= offset;
   }
 
-  if (Tonk.RSpeed > SPEED_MAX)
-    Tonk.RSpeed = SPEED_MAX;
-  if (Tonk.LSpeed > SPEED_MAX)
-    Tonk.LSpeed = SPEED_MAX;
-  if (Tonk.RSpeed < SPEED_MIN)
-    Tonk.RSpeed = SPEED_MIN;
-  if (Tonk.LSpeed < SPEED_MIN)
-    Tonk.LSpeed = SPEED_MIN;
+  int diff = map(analogRead(DIF_PIN), 0, 1023, -90, 90);
+
+  Tonk.RSpeed += diff;
+  Tonk.LSpeed -= diff;
+
+  Tonk.RSpeed = constrain(Tonk.RSpeed, SPEED_MIN, SPEED_MAX);
+  Tonk.LSpeed = constrain(Tonk.LSpeed, SPEED_MIN, SPEED_MAX);
 }
