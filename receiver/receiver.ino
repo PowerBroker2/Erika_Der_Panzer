@@ -1,18 +1,28 @@
 #include <Servo.h>
+#include "MPU9250.h"
 #include "SerialTransfer.h"
+#include "DFPlayerMini_Fast.h"
 #include "FireTimer.h"
 
 
 
 
-const byte recoilMin = 7;
-const byte recoilMax = 158;
+const int STAB_SERVO_MIN = 1000;
+const int STAB_SERVO_MAX = 2000;
+
+const int STAB_ANGLE_MIN = -90;
+const int STAB_ANGLE_MAX = 90;
+
+const byte RECOIL_MIN = 7;
+const byte RECOIL_MAX = 158;
 
 const byte GUN_PIN    = 6;
 const byte TRAV_PIN   = 5;
 const byte R_PIN      = 3;
 const byte L_PIN      = 4;
 const byte RECOIL_PIN = 7;
+
+const byte SONGS[] = { 1, 9, 10, 11, 12, 13, 14, 15 };
 
 
 
@@ -23,23 +33,15 @@ Servo R_Servo;
 Servo L_Servo;
 Servo recoil;
 
+MPU9250 mpu;
 SerialTransfer myTransfer;
+DFPlayerMini_Fast myMP3;
+FireTimer recoilSound;
+FireTimer recoilMotion;
+FireTimer drivingSound;
 
-FireTimer recoilDelay;
 
 
-
-
-enum state
-{
-  GIT_DATA,
-  DRIVE,
-  SING,
-  FIRE
-};
-
-state Current_State  = GIT_DATA;
-state Previous_State = GIT_DATA;
 
 struct control
 {
@@ -55,11 +57,23 @@ struct control
 
 
 
-unsigned long recoilTime = 200;
-unsigned long duration   = 1000;
+byte songNum = 0;
 
-byte randNumber = 1;
-byte trip       = 0;
+float yaw;
+float pitch;
+float roll;
+
+int stabDepress;
+int trackDuration;
+
+int prevVolume;
+bool prevSing;
+bool prevdriving;
+bool prevFire;
+
+bool driving;
+bool firing;
+bool recoiling;
 
 
 
@@ -67,19 +81,7 @@ byte trip       = 0;
 void setup()
 {
   Serial.begin(9600);
-  
-  Tonk.Depression = 90;
-  Tonk.Traverse   = 90;
-  Tonk.Fire       = 0;
-  Tonk.Volume     = 10;
-  Tonk.Sing       = 0;
-  Tonk.Driving    = 0;
 
-  PrevVolume  = 10;
-  PrevSing    = 0;
-  PrevDriving = 0;
-  FireDone    = 1;
-  
   Gun_Servo.attach(GUN_PIN);
   Trav_Servo.attach(TRAV_PIN);
   R_Servo.attach(R_PIN);
@@ -90,21 +92,17 @@ void setup()
   Trav_Servo.write(90);
   R_Servo.write(90);
   L_Servo.write(90);
-  recoil.write(recoilMin);
+  recoil.write(RECOIL_MIN);
 
-  volume(Tonk.Volume);
-  findChecksum();
-  sendData();
+  Wire.begin();
 
-  play(8);
-  findChecksum();
-  sendData();
+  delay(2000);
 
-  delay(3500);
-
-  loop(5);
-  findChecksum();
-  sendData();
+  mpu.setup(0x68);
+  myTransfer.begin(Serial, false);
+  myMP3.begin(Serial, false);
+  recoilSound.begin(1);
+  recoilMotion.begin(1000);
 }
 
 
@@ -112,377 +110,110 @@ void setup()
 
 void loop()
 {
-  switch (Current_State)
+  if (myTransfer.available())
   {
-    case GIT_DATA:///////////////////////////////////////////////////////GIT_DATA
-      if (Serial.available() >= PacketSize)
-      {
-        if (checkSOF())
-        {
-          readData();
-          writeToServos();
-          adjustVolume();
+    prevdriving = driving;
+    prevVolume  = Tonk.Volume;
+    prevSing    = Tonk.Sing;
+    prevFire    = Tonk.Fire;
 
-          if ((Tonk.PrevSing == 1) && (Tonk.Sing == 0))
-          {
-            if (Tonk.Driving)
-            {
-              play(4);    //goinglongtime
-              findChecksum();
-              sendData();
-            }
-            else
-            {
-              play(5);    //idlelongtime
-              findChecksum();
-              sendData();
-            }
-          }
+    myTransfer.rxObj(Tonk);
 
-          if ((Tonk.PrevSing == 0) && (Tonk.Sing == 1))
-          {
-            Current_State = SING;
-            Previous_State = GIT_DATA;
-          }
-          else if (Tonk.Driving != Tonk.PrevDriving)
-          {
-            Current_State = DRIVE;
-            Previous_State = GIT_DATA;
-          }
-          else if (Tonk.Fire)
-          {
-            Current_State = FIRE;
-            Previous_State = GIT_DATA;
-          }
-          else
-          {
-            //do nothing
-          }
-        }
-      }
-      break;
+    R_Servo.write(Tonk.RSpeed);
+    L_Servo.write(Tonk.LSpeed);
+    Trav_Servo.write(Tonk.Traverse);
 
-    case DRIVE:///////////////////////////////////////////////////////DRIVE
-      if ((Tonk.Sing == 0) && (Tonk.FireDone == 1))
-      {
-        if ((Tonk.PrevDriving == 0) && (Tonk.Driving == 1))
-        {
-          play(6);        //revupandgo
-          findChecksum();
-          sendData();
-        }
-        else
-        {
-          play(7);        //slowingnotgoing
-          findChecksum();
-          sendData();
-        }
-      }
-
-      if (Tonk.Fire)
-      {
-        Current_State  = FIRE;
-        Previous_State = DRIVE;
-      }
-      else
-      {
-        Current_State  = GIT_DATA;
-        Previous_State = DRIVE;
-      }
-      break;
-
-    case SING:///////////////////////////////////////////////////////SING
-      playSong();
-
-      if (Tonk.Driving != Tonk.PrevDriving)
-      {
-        Current_State  = DRIVE;
-        Previous_State = SING;
-      }
-      else if (Tonk.Fire)
-      {
-        Current_State  = FIRE;
-        Previous_State = SING;
-      }
-      else
-      {
-        Current_State  = GIT_DATA;
-        Previous_State = SING;
-      }
-      break;
-
-    case FIRE:///////////////////////////////////////////////////////FIRE
-      if (Tonk.Sing == 0)
-      {
-        currentTime = millis();
-        timeBench   = currentTime;
-        recoil.write(recoilMax);
-        if (Tonk.Driving)
-        {
-          play(3);
-          findChecksum();
-          sendData();
-          duration = 3000;
-        }
-        else
-        {
-          play(2);
-          findChecksum();
-          sendData();
-          duration = 4000;
-        }
-        Tonk.FireDone = 0;
-      }
-
-      Current_State = GIT_DATA;
-      Previous_State = FIRE;
-      break;
-
-    default:///////////////////////////////////////////////////////default
-      while (1); //HALT
-      break;
-  }
-
-  if (Tonk.FireDone == 0)
-  {
-    currentTime = millis();
-    if ((currentTime - timeBench) >= duration)
-    {
-      timeBench = currentTime;
-
-      if ((Tonk.Driving == 1) && (Tonk.Sing == 0))
-      {
-        play(4);
-        findChecksum();
-        sendData();
-      }
-      else
-      {
-        play(5);
-        findChecksum();
-        sendData();
-      }
-      Tonk.FireDone = 1;
-    }
-    else if((currentTime - timeBench) >= recoilTime)
-    {
-      recoil.write(recoilMin);
-    }
+    if (Tonk.RSpeed || Tonk.LSpeed)
+      driving = true;
     else
+      driving = false;
+
+    if (prevVolume != Tonk.Volume)
+      myMP3.volume(Tonk.Volume);
+
+    if (prevSing != Tonk.Sing) // Sound state change
     {
-      //do nothing
+      if (Tonk.Sing) // Start playing music
+      {
+        // Reset gun just in case
+        recoil.write(RECOIL_MIN);
+
+        // Play next song
+        myMP3.loop(SONGS[songNum]);
+
+        songNum++;
+
+        // Reset to keep song number in bounds
+        if (songNum >= (sizeof(SONGS) / sizeof(SONGS[0])))
+          songNum = 0;
+      }
+      else // Stop playing music
+      {
+        if (driving)
+          myMP3.play(4); // driving
+        else
+          myMP3.play(5); // Idling
+      }
+    }
+    else if (Tonk.Sing && !prevFire && Tonk.Fire) // Play next song
+    {
+      // Play next song
+      myMP3.loop(SONGS[songNum]);
+
+      songNum++;
+
+      // Reset to keep song number in bounds
+      if (songNum >= (sizeof(SONGS) / sizeof(SONGS[0])))
+        songNum = 0;
+    }
+    else if (!Tonk.Sing) // Normal tank sounds
+    {
+      if (!prevFire && Tonk.Fire) // Fire
+      {
+        firing    = true;
+        recoiling = true;
+
+        recoilMotion.start();
+        
+        if (driving)
+        {
+          myMP3.play(3); // Shoot while driving
+          recoilSound.begin(3000);
+        }
+        else
+        {
+          myMP3.play(2); // Shoot idling
+          recoilSound.begin(4000);
+        }
+
+        recoil.write(RECOIL_MAX);
+      }
+      else if (!firing && (prevdriving != driving)) // Normal driving state change
+      {
+        if (driving) // Start moving
+          myMP3.play(6); // revupandgo
+        else // Stop moving
+          myMP3.play(7); // slowingnotgoing
+      }
     }
   }
-}
 
+  if (firing && recoilSound.fire())
+    firing = false;
 
-
-
-void findChecksum()
-{
-  checksum = (~(ver + number + commandValue + feedback + paramMSB + paramLSB)) + 1;
-
-  checksumMSB = checksum >> 8;
-  checksumLSB = checksum & 0xFF;
-
-  return;
-}
-
-
-
-
-void volume(byte x)
-{
-  commandValue = 6;
-  paramMSB = 0;
-  paramLSB = x;
-
-  return;
-}
-
-
-
-
-void loop(byte x)
-{
-  commandValue = 8;
-  paramMSB = 0;
-  paramLSB = x;
-
-  return;
-}
-
-
-
-
-void play(byte x)
-{
-  commandValue = 3;
-  paramMSB = 0;
-  paramLSB = x;
-
-  return;
-}
-
-
-
-
-void sendData()
-{
-  Serial.write(BOF);
-  Serial.write(ver);
-  Serial.write(number);
-  Serial.write(commandValue);
-  Serial.write(feedback);
-  Serial.write(paramMSB);
-  Serial.write(paramLSB);
-  Serial.write(checksumMSB);
-  Serial.write(checksumLSB);
-  Serial.write(_EOF);
-
-  return;
-}
-
-
-
-
-byte checkSOF()
-{
-  byte result = 0;
-
-  if (Serial.read() == StartOfFrame)
+  if (recoiling && recoilMotion.fire())
   {
-    result = 1;
-  }
-  else
-  {
-    result = 0;
+    recoil.write(RECOIL_MIN);
+    recoiling = false;
   }
 
-  return result;
-}
-
-void readData()
-{
-  Tonk.PrevSing    = Tonk.Sing;
-  Tonk.PrevDriving = Tonk.Driving;
-  Tonk.PrevVolume  = Tonk.Volume;
-  Tonk.Fire        = Serial.read();
-  Tonk.RSpeed      = Serial.read();
-  Tonk.LSpeed      = Serial.read();
-  Tonk.Depression  = Serial.read();
-  Tonk.Traverse    = Serial.read();
-  Tonk.Volume      = Serial.read();
-  Tonk.Sing        = Serial.read();
-
-  if ((Tonk.RSpeed != 90) || (Tonk.LSpeed != 90))
+  if (mpu.update())
   {
-    Tonk.Driving = 1;
-  }
-  else
-  {
-    Tonk.Driving = 0;
+    yaw   = mpu.getYaw();
+    pitch = mpu.getPitch();
+    roll  = mpu.getRoll();
   }
 
-  return;
-}
-
-
-
-
-void writeToServos()
-{
-  R_Servo.write(Tonk.RSpeed);
-  L_Servo.write(Tonk.LSpeed);
-  Gun_Servo.write(Tonk.Depression);
-  Trav_Servo.write(Tonk.Traverse);
-
-  return;
-}
-
-
-
-
-void playSong()
-{
-  if (randNumber == 1)
-  {
-    loop(1);
-  }
-  else if (randNumber == 2)
-  {
-    loop(9);
-  }
-  else if (randNumber == 3)
-  {
-    loop(10);
-  }
-  else if (randNumber == 4)
-  {
-    loop(11);
-  }
-  else if (randNumber == 5)
-  {
-    loop(12);
-  }
-  else if (randNumber == 6)
-  {
-    loop(13);
-  }
-  else if (randNumber == 7)
-  {
-    loop(14);
-  }
-  else if (randNumber == 8)
-  {
-    loop(15);
-  }
-  else
-  {
-    //do nothing
-  }
-
-  randNumber = randNumber + 1;
-
-  if (randNumber == 9)
-  {
-    randNumber = 1;
-  }
-
-  findChecksum();
-  sendData();
-
-  return;
-}
-
-
-
-
-//return to ready state
-void firin_Mah_Laza()
-{
-  currentTime = millis();
-  if ((currentTime - timeBench) >= recoilTime)
-  {
-    recoil.write(recoilMin);
-    timeBench = currentTime;
-    Tonk.FireDone = 1;
-  }
-
-  return;
-}
-
-
-
-
-void adjustVolume()
-{
-  if (Tonk.PrevVolume != Tonk.Volume)
-  {
-    volume(Tonk.Volume);
-    findChecksum();
-    sendData();
-  }
-
-  return;
+  stabDepress = map(constrain(pitch + Tonk.Depression, STAB_ANGLE_MIN, STAB_ANGLE_MAX), STAB_ANGLE_MIN, STAB_ANGLE_MAX, STAB_SERVO_MIN, STAB_SERVO_MAX);
+  Gun_Servo.writeMicroseconds(stabDepress);
 }
