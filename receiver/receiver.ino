@@ -1,8 +1,8 @@
 #include <Servo.h>
-#include "MPU9250.h"
 #include "SerialTransfer.h"
 #include "DFPlayerMini_Fast.h"
 #include "FireTimer.h"
+#include "MotorController.h"
 
 
 
@@ -16,11 +16,11 @@ const int STAB_ANGLE_MAX = 90;
 const byte RECOIL_MIN = 7;
 const byte RECOIL_MAX = 158;
 
-const byte GUN_PIN    = 6;
-const byte TRAV_PIN   = 5;
-const byte R_PIN      = 3;
-const byte L_PIN      = 4;
-const byte RECOIL_PIN = 7;
+const byte GUN_PIN    = 5;
+const byte TRAV_PIN   = 4;
+const byte R_PIN      = 2;
+const byte L_PIN      = 3;
+const byte RECOIL_PIN = 6;
 
 const byte SONGS[] = { 1, 9, 10, 11, 12, 13, 14, 15 };
 
@@ -29,21 +29,20 @@ const byte SONGS[] = { 1, 9, 10, 11, 12, 13, 14, 15 };
 
 Servo Gun_Servo;
 Servo Trav_Servo;
-Servo R_Servo;
-Servo L_Servo;
 Servo recoil;
 
-MPU9250 mpu;
 SerialTransfer myTransfer;
 DFPlayerMini_Fast myMP3;
 FireTimer recoilSound;
 FireTimer recoilMotion;
 FireTimer drivingSound;
+DCMotorController motorR = DCMotorController(R_PIN, 17, 16); // pwmPin, in1, in2
+DCMotorController motorL = DCMotorController(L_PIN, 15, 14); // pwmPin, in1, in2
 
 
 
 
-struct control
+struct __attribute__((__packed__)) control
 {
   int   RSpeed;
   int   LSpeed;
@@ -58,10 +57,6 @@ struct control
 
 
 byte songNum = 0;
-
-float yaw;
-float pitch;
-float roll;
 
 int stabDepress;
 int trackDuration;
@@ -80,29 +75,29 @@ bool recoiling;
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
+  Serial1.begin(9600);
 
   Gun_Servo.attach(GUN_PIN);
   Trav_Servo.attach(TRAV_PIN);
-  R_Servo.attach(R_PIN);
-  L_Servo.attach(L_PIN);
   recoil.attach(RECOIL_PIN);
 
   Gun_Servo.write(90);
   Trav_Servo.write(90);
-  R_Servo.write(90);
-  L_Servo.write(90);
   recoil.write(RECOIL_MIN);
 
-  Wire.begin();
-
-  delay(2000);
-
-  mpu.setup(0x68);
-  myTransfer.begin(Serial, false);
+  myTransfer.begin(Serial1, true, Serial);
   myMP3.begin(Serial, false);
   recoilSound.begin(1);
   recoilMotion.begin(1000);
+
+  Serial.print("RSpeed ");
+  Serial.print("LSpeed ");
+  Serial.print("Depression ");
+  Serial.print("Traverse ");
+  Serial.print("Fire ");
+  Serial.print("Volume ");
+  Serial.println("Sing");
 }
 
 
@@ -119,8 +114,16 @@ void loop()
 
     myTransfer.rxObj(Tonk);
 
-    R_Servo.write(Tonk.RSpeed);
-    L_Servo.write(Tonk.LSpeed);
+    Serial.print(Tonk.RSpeed); Serial.print(' ');
+    Serial.print(Tonk.LSpeed); Serial.print(' ');
+    Serial.print(Tonk.Depression); Serial.print(' ');
+    Serial.print(Tonk.Traverse); Serial.print(' ');
+    Serial.print(Tonk.Fire); Serial.print(' ');
+    Serial.print(Tonk.Volume); Serial.print(' ');
+    Serial.println(Tonk.Sing);
+
+    motorR.write(Tonk.RSpeed);
+    motorL.write(Tonk.LSpeed);
     Trav_Servo.write(Tonk.Traverse);
 
     if (Tonk.RSpeed || Tonk.LSpeed)
@@ -207,13 +210,6 @@ void loop()
     recoiling = false;
   }
 
-  if (mpu.update())
-  {
-    yaw   = mpu.getYaw();
-    pitch = mpu.getPitch();
-    roll  = mpu.getRoll();
-  }
-
-  stabDepress = map(constrain(pitch + Tonk.Depression, STAB_ANGLE_MIN, STAB_ANGLE_MAX), STAB_ANGLE_MIN, STAB_ANGLE_MAX, STAB_SERVO_MIN, STAB_SERVO_MAX);
+  stabDepress = map(constrain(Tonk.Depression, STAB_ANGLE_MIN, STAB_ANGLE_MAX), STAB_ANGLE_MIN, STAB_ANGLE_MAX, STAB_SERVO_MIN, STAB_SERVO_MAX);
   Gun_Servo.writeMicroseconds(stabDepress);
 }

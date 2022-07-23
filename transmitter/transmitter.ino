@@ -5,11 +5,6 @@
 
 
 
-#define DEBUG 0
-
-
-
-
 const int STICK_DEAD_MAX = 540;
 const int STICK_DEAD_MIN = 490;
 
@@ -20,14 +15,15 @@ const int TRAV_MIN = 0;
 const int RECOIL_DELAY  = 2000;
 const int DEPRESS_DELAY = 85;
 
-const int DEP_MAX = 105;
-const int DEP_MIN = -10;
+const int DEP_MAX = 200;
+const int DEP_MIN = -200;
 
-const int STICK_OFFSET_MAX = 90;
+const int STICK_OFFSET_MAX = 255;
 const int STICK_OFFSET_MIN = 0;
 
-const int SPEED_MAX = 180;
-const int SPEED_MIN = 0;
+const int SPEED_MAX = 255;
+const int SPEED_MID = 0;
+const int SPEED_MIN = -255;
 
 const int VOL_PIN = A5;
 const int DIF_PIN = A4;
@@ -61,7 +57,7 @@ SerialTransfer myTransfer;
 FireTimer recoilDelay;
 FireTimer depressDelay;
 
-struct control
+struct __attribute__((__packed__)) control
 {
   int   RSpeed;
   int   LSpeed;
@@ -97,12 +93,13 @@ static void handleSound()
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
+  Serial1.begin(9600);
   
   trigBtn.attachClick(handleTrig);
   soundBtn.attachClick(handleSound);
   
-  myTransfer.begin(Serial, false);
+  myTransfer.begin(Serial1, false);
   
   recoilDelay.begin(RECOIL_DELAY);
   depressDelay.begin(DEPRESS_DELAY);
@@ -118,19 +115,17 @@ void loop()
   Turret();
   Throttle();
 
-#if DEBUG
-  Serial.print("RSpeed:\t\t"); Serial.println(Tonk.RSpeed);
-  Serial.print("LSpeed:\t\t"); Serial.println(Tonk.LSpeed);
-  Serial.print("Depression:\t"); Serial.println(Tonk.Depression);
-  Serial.print("Traverse:\t"); Serial.println(Tonk.Traverse);
-  Serial.print("Fire:\t\t"); Serial.println(Tonk.Fire);
-  Serial.print("Volume:\t\t"); Serial.println(Tonk.Volume);
-  Serial.print("Sing:\t\t"); Serial.println(Tonk.Sing);
+  Serial.print(Tonk.RSpeed); Serial.print(" "); 
+  Serial.print(Tonk.LSpeed); Serial.print(" "); 
+  Serial.print(Tonk.Depression); Serial.print(" "); 
+  Serial.print(Tonk.Traverse); Serial.print(" "); 
+  Serial.print(Tonk.Fire); Serial.print(" "); 
+  Serial.print(Tonk.Volume); Serial.print(" "); 
+  Serial.print(Tonk.Sing); Serial.print(" ");
   Serial.println();
-  Serial.println();
-#else
+  
   myTransfer.sendDatum(Tonk);
-#endif
+  delay(100);
 }
 
 
@@ -172,9 +167,9 @@ void Turret()
     int depr = analogRead(DEP_PIN);
     
     if (depr >= STICK_DEAD_MAX)
-      Tonk.Depression += map(depr, STICK_DEAD_MAX, 1023, 0, 5);
+      Tonk.Depression += map(depr, STICK_DEAD_MAX, 1023, 0, 10);
     else if (depr <= STICK_DEAD_MIN)
-      Tonk.Depression += map(depr, STICK_DEAD_MIN, 0, -5, 0);
+      Tonk.Depression += map(depr, STICK_DEAD_MIN, 0, -10, 0);
     
     Tonk.Depression = constrain(Tonk.Depression, DEP_MIN, DEP_MAX);
   }
@@ -207,18 +202,18 @@ void Throttle()
   
   if (x >= STICK_DEAD_MAX)
   {
-    Tonk.RSpeed = 90;
-    Tonk.LSpeed = map(x, STICK_DEAD_MAX, 1023, 90, SPEED_MIN);
+    Tonk.RSpeed = SPEED_MID;
+    Tonk.LSpeed = map(x, STICK_DEAD_MAX, 1023, SPEED_MID, SPEED_MIN);
   }
   else if (x <= STICK_DEAD_MIN)
   {
-    Tonk.LSpeed = 90;
-    Tonk.RSpeed = map(x, STICK_DEAD_MAX, 0, 90, SPEED_MAX);
+    Tonk.LSpeed = SPEED_MID;
+    Tonk.RSpeed = map(x, STICK_DEAD_MAX, 0, SPEED_MID, SPEED_MAX);
   }
   else
   {
-    Tonk.RSpeed = 90;
-    Tonk.LSpeed = 90;
+    Tonk.RSpeed = SPEED_MID;
+    Tonk.LSpeed = SPEED_MID;
   }
 
   if ((offset > 0) && !driveDirection)
